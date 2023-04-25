@@ -5,23 +5,12 @@
 #include <unordered_map> 
 
 namespace ecs_s {
+	using entity = uint64_t;
+	using component_id = entity;
+	class registry;
 
-	namespace impl {
-		//term: recursive variadic helper template structure
-		template <size_t N, typename T, typename ...Ts>
-		struct component_has_helper {
-			static bool component_has_impl(registry& world, const entity& e) {
-				return (static_cast<sparse_set<T>*>(world._component_data[world.get_component_id<T>()].get()))->has(e) &&
-					component_has_helper<N - 1, Ts...>::component_has_impl(world, e);
-			}
-		};
-		template <typename T>
-		struct component_has_helper<0, T> {
-			static bool component_has_impl(registry& world, const entity& e) {
-				return (static_cast<sparse_set<T>*>(world._component_data[world.get_component_id<T>()].get()))->has(e);
-			}
-		};
-	}
+
+
 
 	//term: type erasure 
 	class sparse_base {
@@ -71,9 +60,7 @@ namespace ecs_s {
 		auto end() { return _dense.begin() + n - 1; }
 	};
 
-	using entity = uint64_t;
-	using component_id = entity;
-	class registry;
+
 
 	template<typename T>
 	class system {
@@ -90,6 +77,20 @@ namespace ecs_s {
 		inline T& get_component_value_for(const entity& e) {
 			return (*(static_cast<sparse_set<T>*>(_component_data[get_component_id<T>()].get())))[e];
 		}
+		//term: recursive variadic helper template structure
+		template <size_t N, typename T, typename ...Ts>
+		struct component_has_helper {
+			static bool component_has_impl(registry& world, const entity& e) {
+				return (static_cast<sparse_set<T>*>(world._component_data[world.get_component_id<T>()].get()))->has(e) &&
+					component_has_helper<N - 1, Ts...>::component_has_impl(world, e);
+			}
+		};
+		template <typename T>
+		struct component_has_helper<0, T> {
+			static bool component_has_impl(registry& world, const entity& e) {
+				return (static_cast<sparse_set<T>*>(world._component_data[world.get_component_id<T>()].get()))->has(e);
+			}
+		};
 
 		template<typename ...Ts>
 		inline bool component_has(const entity& e) {
