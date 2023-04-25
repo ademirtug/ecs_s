@@ -37,7 +37,44 @@ namespace ecs_s {
 		auto begin();
 		auto end();
 	};
-	
+
+	template<typename T>
+	class system {
+	public:
+		virtual void process(registry& world, T& evt) {};
+	};
+
+	class registry {
+		uint64_t get_new_id();
+		template<typename T> inline T& get_component_value_for(const entity& e);
+		//term: recursive variadic helper template structure
+		template <size_t N, typename T, typename ...Ts>
+		struct component_has_helper {
+			static bool component_has_impl(registry& world, const entity& e) {
+				return (static_cast<sparse_set<T>*>(world._component_data[world.get_component_id<T>()].get()))->has(e) &&
+					component_has_helper<N - 1, Ts...>::component_has_impl(world, e);
+			}
+		};
+		template <typename T>
+		struct component_has_helper<0, T> {
+			static bool component_has_impl(registry& world, const entity& e) {
+				return (static_cast<sparse_set<T>*>(world._component_data[world.get_component_id<T>()].get()))->has(e);
+			}
+		};
+
+		template<typename ...Ts> inline bool component_has(const entity& e);
+		std::unordered_map<component_id, std::shared_ptr<sparse_base>> _component_data;
+	public:
+		[[nodiscard]] entity new_entity();
+		void remove_entity(const entity& e);
+		template<typename T> void add_component(const entity& e, T&& p);
+		template<typename T> void remove_component(const entity& e);
+		template<typename T> [[nodiscard]] component_id get_component_id();
+		template<typename T, typename F> void each(F f);
+		template<typename... Ts, typename F> void view(F f);
+	};
+
+	//sparse_set impl
 	template<typename T, size_t capacity>
 	sparse_set<T, capacity>::sparse_set() {
 		_sparse.fill(UINT64_MAX);
@@ -74,45 +111,8 @@ namespace ecs_s {
 	auto sparse_set<T, capacity>::end() { 
 		return _dense.begin() + n - 1;
 	}
-
-	template<typename T>
-	class system {
-	public:
-		virtual void process(registry& world, T& evt) {};
-	};
-
-	class registry {
-		uint64_t get_new_id();
-		template<typename T> inline T& get_component_value_for(const entity& e);
-		//term: recursive variadic helper template structure
-		template <size_t N, typename T, typename ...Ts>
-		struct component_has_helper {
-			static bool component_has_impl(registry& world, const entity& e) {
-				return (static_cast<sparse_set<T>*>(world._component_data[world.get_component_id<T>()].get()))->has(e) &&
-					component_has_helper<N - 1, Ts...>::component_has_impl(world, e);
-			}
-		};
-		template <typename T>
-		struct component_has_helper<0, T> {
-			static bool component_has_impl(registry& world, const entity& e) {
-				return (static_cast<sparse_set<T>*>(world._component_data[world.get_component_id<T>()].get()))->has(e);
-			}
-		};
-
-		template<typename ...Ts> inline bool component_has(const entity& e);
-		std::unordered_map<component_id, std::shared_ptr<sparse_base>> _component_data;
-	public:
-		[[nodiscard]] entity new_entity();
-		void remove_entity(const entity& e);
-		template<typename T> void add_component(const entity& e, T&& p);
-		template<typename T> void remove_component(const entity& e);
-		//trick: each T will get its own static variable
-		template<typename T> [[nodiscard]] component_id get_component_id();
-		template<typename T, typename F> void each(F f);
-		template<typename... Ts, typename F> void view(F f);
-	};
-
-
+	
+	//registry impl
 	template<typename T>
 	inline T& registry::get_component_value_for(const entity& e) {
 		return (*(static_cast<sparse_set<T>*>(_component_data[get_component_id<T>()].get())))[e];
