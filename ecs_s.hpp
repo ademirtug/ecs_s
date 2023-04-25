@@ -94,7 +94,7 @@ namespace ecs_s {
 
 		template<typename ...Ts>
 		inline bool component_has(const entity& e) {
-			return impl::component_has_helper<sizeof...(Ts) - 1, Ts...>::component_has_impl(*this, e);
+			return component_has_helper<sizeof...(Ts) - 1, Ts...>::component_has_impl(*this, e);
 		}
 		std::unordered_map<component_id, std::shared_ptr<sparse_base>> _component_data;
 	public:
