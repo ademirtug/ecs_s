@@ -6,6 +6,23 @@
 
 namespace ecs_s {
 
+	namespace impl {
+		//term: recursive variadic helper template structure
+		template <size_t N, typename T, typename ...Ts>
+		struct component_has_helper {
+			static bool component_has_impl(registry& world, const entity& e) {
+				return (static_cast<sparse_set<T>*>(world._component_data[world.get_component_id<T>()].get()))->has(e) &&
+					component_has_helper<N - 1, Ts...>::component_has_impl(world, e);
+			}
+		};
+		template <typename T>
+		struct component_has_helper<0, T> {
+			static bool component_has_impl(registry& world, const entity& e) {
+				return (static_cast<sparse_set<T>*>(world._component_data[world.get_component_id<T>()].get()))->has(e);
+			}
+		};
+	}
+
 	//term: type erasure 
 	class sparse_base {
 	public:
@@ -28,15 +45,15 @@ namespace ecs_s {
 			_sparse.fill(UINT64_MAX);
 		}
 
-		T& operator[](size_t index) {
+		T& operator[](const size_t& index) {
 			return _dense[_sparse[index]].payload;
 		}
 
-		void insert(size_t index, T& t) {
+		void insert(const size_t& index, T& t) {
 			_dense[n] = { index, t };
 			_sparse[index] = n++;
 		}
-		void erase(size_t index) override {
+		void erase(const size_t& index) override {
 			if (!has(index))
 				return;
 
@@ -70,26 +87,13 @@ namespace ecs_s {
 			return ++id_counter;
 		}
 		template<typename T>
-		inline T& get_component_value_for(entity e) {
+		inline T& get_component_value_for(const entity& e) {
 			return (*(static_cast<sparse_set<T>*>(_component_data[get_component_id<T>()].get())))[e];
 		}
-		//term: recursive variadic helper template structure
-		template <size_t N, typename T, typename ...Ts>
-		struct component_has_helper {
-			static bool component_has_impl(registry& world, const entity& e) {
-				return (static_cast<sparse_set<T>*>(world._component_data[world.get_component_id<T>()].get()))->has(e) &&
-					component_has_helper<N - 1, Ts...>::component_has_impl(world, e);
-			}
-		};
-		template <typename T>
-		struct component_has_helper<0, T> {
-			static bool component_has_impl(registry& world, const entity& e) {
-				return (static_cast<sparse_set<T>*>(world._component_data[world.get_component_id<T>()].get()))->has(e);
-			}
-		};
+
 		template<typename ...Ts>
 		inline bool component_has(const entity& e) {
-			return component_has_helper<sizeof...(Ts) - 1, Ts...>::component_has_impl(*this, e);
+			return impl::component_has_helper<sizeof...(Ts) - 1, Ts...>::component_has_impl(*this, e);
 		}
 		std::unordered_map<component_id, std::shared_ptr<sparse_base>> _component_data;
 	public:
