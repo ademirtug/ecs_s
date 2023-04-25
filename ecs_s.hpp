@@ -171,5 +171,4 @@ namespace ecs_s {
 			std::apply(f, tx);
 		}
 	}
-
 }
