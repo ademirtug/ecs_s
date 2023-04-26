@@ -12,11 +12,11 @@ namespace ecs_s {
 	using component_id = entity;
 	class registry;
 	
+	//term: type erasure
 	class sparse_base {
 	public:
 		virtual void erase(size_t index) {};
 	};
-
 
 	//term: sparse set
 	template<typename T, size_t capacity = _SPARSE_CAPACITY_> class sparse_set : public sparse_base {
@@ -79,7 +79,6 @@ namespace ecs_s {
 	sparse_set<T, capacity>::sparse_set() {
 		_sparse.fill(UINT64_MAX);
 	}
-
 	template<typename T, size_t capacity>
 	T&  sparse_set<T, capacity>::operator[](const size_t& index) {
 		return _dense[_sparse[index]].payload;
@@ -117,14 +116,10 @@ namespace ecs_s {
 	inline T& registry::get_component_value_for(const entity& e) {
 		return (*(static_cast<sparse_set<T>*>(_component_data[get_component_id<T>()].get())))[e];
 	}
-
-
 	template<typename ...Ts>
 	inline bool registry::component_has(const entity& e) {
 		return component_has_helper<sizeof...(Ts) - 1, Ts...>::component_has_impl(*this, e);
 	}
-	std::unordered_map<component_id, std::shared_ptr<sparse_base>> _component_data;
-
 	[[nodiscard]] entity registry::new_entity() {
 		static uint64_t entity_counter;
 		return ++entity_counter;
