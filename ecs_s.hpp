@@ -11,11 +11,11 @@ namespace ecs_s {
 	using entity = uint64_t;
 	using component_id = entity;
 	class registry;
-	
+
 	//term: type erasure
 	class sparse_base {
 	public:
-		virtual void erase(size_t index) {};
+		virtual void erase(const size_t& index) {};
 	};
 
 	//term: sparse set
@@ -45,7 +45,10 @@ namespace ecs_s {
 	};
 
 	class registry {
-		uint64_t get_new_id();
+		uint64_t get_new_id() {
+			static uint64_t id_counter;
+			return ++id_counter;
+		}
 		template<typename T> inline T& get_component_value_for(const entity& e);
 		//term: recursive variadic helper template structure
 		template <size_t N, typename T, typename ...Ts>
@@ -80,7 +83,7 @@ namespace ecs_s {
 		_sparse.fill(UINT64_MAX);
 	}
 	template<typename T, size_t capacity>
-	T&  sparse_set<T, capacity>::operator[](const size_t& index) {
+	T& sparse_set<T, capacity>::operator[](const size_t& index) {
 		return _dense[_sparse[index]].payload;
 	}
 	template<typename T, size_t capacity>
@@ -107,10 +110,10 @@ namespace ecs_s {
 		return _dense.begin();
 	}
 	template<typename T, size_t capacity>
-	auto sparse_set<T, capacity>::end() { 
+	auto sparse_set<T, capacity>::end() {
 		return _dense.begin() + n - 1;
 	}
-	
+
 	//registry impl
 	template<typename T>
 	inline T& registry::get_component_value_for(const entity& e) {
