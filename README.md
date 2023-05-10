@@ -15,7 +15,9 @@ Sparse set based ECS implementation.
 
 ```cpp
 #include "ecs_s.hpp"
+
 using namespace ecs_s;
+
 struct model{
   void draw();
 };
