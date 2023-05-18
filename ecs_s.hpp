@@ -28,14 +28,35 @@ namespace ecs_s {
 		size_t n{ 0 };
 		using sparse_type = T;
 	public:
-		sparse_set();
 
-		T& operator[](const size_t& index);
-		void insert(const size_t& index, T& t);
-		void erase(const size_t& index) override;
-		bool has(const size_t& index);
-		auto begin();
-		auto end();
+		sparse_set() {
+			sparse_.fill(UINT64_MAX);
+		}
+		T& operator[](const size_t& index) {
+			return dense_[sparse_[index]].payload;
+		}
+		void insert(const size_t& index, T& t) {
+			dense_[n] = { index, t };
+			sparse_[index] = n++;
+		}
+		void erase(const size_t& index) {
+			if (!has(index))
+				return;
+			dense_[sparse_[index]] = dense_[--n];
+			sparse_[dense_[n].index] = index;
+			sparse_[index] = UINT64_MAX;
+		}
+		bool has(const size_t& index) {
+			return sparse_[index] < n &&
+				sparse_[index] != UINT64_MAX &&
+				dense_[sparse_[index]].index == index;
+		}
+		auto begin() {
+			return dense_.begin();
+		}
+		auto end() {
+			return dense_.begin() + n;
+		}
 	};
 
 
@@ -44,14 +65,14 @@ namespace ecs_s {
 		template <size_t N, typename T, typename ...Ts>
 		struct component_has_helper {
 			static bool component_has_impl(registry& world, const entity& e) {
-				return (static_cast<sparse_set<T>*>(world.component_data_[world.get_component_id<T>()].get()))->has(e) &&
-					component_has_helper<N - 1, Ts...>::component_has_impl(world, e);
+				return world.get_component_data<T>()->has(e) &&
+				component_has_helper<N - 1, Ts...>::component_has_impl(world, e);
 			}
 		};
 		template <typename T>
 		struct component_has_helper<0, T> {
 			static bool component_has_impl(registry& world, const entity& e) {
-				return (static_cast<sparse_set<T>*>(world.component_data_[world.get_component_id<T>()].get()))->has(e);
+				return world.get_component_data<T>()->has(e);
 			}
 		};
 		template<typename T>
@@ -96,6 +117,12 @@ namespace ecs_s {
 		void remove_component(const entity& e) {
 			get_component_data<T>()->erase(e);
 		}
+		template<typename T>
+		void truncate_component() {
+			if (component_data_.find(get_component_id<T>()) == component_data_.end()) {
+				component_data_[get_component_id<T>()] = std::make_shared<sparse_set<T>>();
+			}
+		}
 		//trick: each T will get its own static variable
 		template<typename T>
 		[[nodiscard]] component_id get_component_id() {
@@ -124,40 +151,6 @@ namespace ecs_s {
 		}
 	};
 
-	//sparse_set impl
-	template<typename T, size_t capacity>
-	sparse_set<T, capacity>::sparse_set() {
-		sparse_.fill(UINT64_MAX);
-	}
-	template<typename T, size_t capacity>
-	T& sparse_set<T, capacity>::operator[](const size_t& index) {
-		return dense_[sparse_[index]].payload;
-	}
-	template<typename T, size_t capacity>
-	void sparse_set<T, capacity>::insert(const size_t& index, T& t) {
-		dense_[n] = { index, t };
-		sparse_[index] = n++;
-	}
-	template<typename T, size_t capacity>
-	void sparse_set<T, capacity>::erase(const size_t& index) {
-		if (!has(index))
-			return;
-		dense_[sparse_[index]] = dense_[--n];
-		sparse_[dense_[n].index] = index;
-		sparse_[index] = UINT64_MAX;
-	}
-	template<typename T, size_t capacity>
-	bool sparse_set<T, capacity>::has(const size_t& index) {
-		return sparse_[index] < n &&
-			sparse_[index] != UINT64_MAX &&
-			dense_[sparse_[index]].index == index;
-	}
-	template<typename T, size_t capacity>
-	auto sparse_set<T, capacity>::begin() {
-		return dense_.begin();
-	}
-	template<typename T, size_t capacity>
-	auto sparse_set<T, capacity>::end() {
-		return dense_.begin() + n;
-	}
+
+
 }
